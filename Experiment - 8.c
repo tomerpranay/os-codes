@@ -1,50 +1,49 @@
-// Write a program to find out the FIRST of the Non-terminals in a grammar.
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdlib.h>
+#include<semaphore.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<pthread.h>
 
-int isterminal(char c) {
-    return c >= 33 && c <= 126 && !isupper(c);
+sem_t x;
+pthread_t writerthreads[100], readerthreads[100];
+int readercount = 0, writercount = 0, criticalValue = 10;
+
+void * reader() {
+    printf("Reader is trying to enter\n");
+    sem_wait( & x);
+    readercount++;
+    printf("Reader %d is inside\n", readercount);
+    printf("Critical Value: %d\n", criticalValue);
+    printf("Reader %d is leaving\n", readercount);
+    sem_post( & x);
+    return NULL;
 }
 
-char * first(char LHS, char L[][1], char R[][100], int n) {
-    char * result = (char * ) malloc(100);
-    for (int i = 0; i < n; i++) {
-        if (LHS != L[i][0]) continue;
-        char * temp = (char * ) malloc(100);
-        strcpy(temp, R[i]);
-        char * token = strtok(temp, "/");
-        char tokens[100][100];
-        int c = 0;
-        while (token) {
-            strcpy(tokens[c++], token);
-            token = strtok(NULL, "/");
-        }
-        for (int j = 0; j < c; j++) {
-            char * token = tokens[j];
-            if (!strcmp(token, "ɛ")) strcat(result, token);
-            else if (isterminal(token[0])) result[strlen(result)] = token[0];
-            else if (token[0] != LHS && isupper(token[0])) strcat(result, first(token[0], L, R, n));
-            token = strtok(NULL, "/");
-        }
-        break;
-    }
-    return result;
+void * writer() {
+    printf("Writer is trying to enter\n");
+    sem_wait( & x);
+    writercount++;
+    printf("Writer %d has entered\n", writercount);
+    criticalValue += writercount;
+    printf("Writer %d is leaving\n", writercount);
+    sem_post( & x);
+    return NULL;
 }
 
 int main() {
-    int n;
-    printf("Enter number of rules: ");
-    scanf("%d", & n);
-    char L[n][1], R[n][100];
-    for (int i = 0; i < n; i++){
-        printf("R%d: ", i + 1);
-        scanf("%1s->%s", & L[i], & R[i]);
-    }
-    for (int i = 0; i < n; i++) {
-        char LHS = L[i][0];
-        printf("%c: %s\n", LHS, first(LHS, L, R, n));
-    }
+    int nReader, nWriter;
+    printf("Enter the number of readers: ");
+    scanf("%d", & nReader);
+    printf("Enter the number of writers: ");
+    scanf("%d", & nWriter);
+    sem_init( & x, 0, 1);
+    for (int i = 0; i < nReader; i++)
+        pthread_create( & readerthreads[i], NULL, reader, NULL);
+    for (int i = 0; i < nWriter; i++)
+        pthread_create( & writerthreads[i], NULL, writer, NULL);
+    for (int i = 0; i < nReader; i++)
+        pthread_join(readerthreads[i], NULL);
+    for (int i = 0; i < nWriter; i++)
+        pthread_join(writerthreads[i], NULL);
     return 0;
 }
